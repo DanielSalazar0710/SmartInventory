@@ -1,0 +1,70 @@
+SET
+SET
+Null display is "—".
+CREATE FUNCTION
+== 2. Reserva FEFO atómica (6 unidades de FAR-SUERO-500) ==
+BEGIN
+INSERT 0 1
+INSERT 0 1
+ id_reserva | id_lote | numero_lote | id_ubicacion | fecha_vencimiento | cantidad 
+------------+---------+-------------+--------------+-------------------+----------
+         26 |      12 | SU-2411A    |            4 | 2026-12-10        |        4
+         27 |      13 | SU-2411B    |            4 | 2027-01-04        |        2
+(2 rows)
+
+ numero_lote | fecha_vencimiento | cantidad_fisica | cantidad_reservada | disponible 
+-------------+-------------------+-----------------+--------------------+------------
+ SU-2410     | 2026-11-22        |              10 |                  0 |         10
+ SU-2411A    | 2026-12-10        |               4 |                  4 |          0
+ SU-2411B    | 2027-01-04        |               3 |                  2 |          1
+(3 rows)
+
+ROLLBACK
+== 3. Fallo parcial: la última asignación falla y todo vuelve atrás ==
+SELECT 1
+INSERT 0 1
+INSERT 0 2
+BEGIN
+psql:sql/04_transactions.sql:129: ERROR:  Stock insuficiente para pedido 19 línea 2: faltan 43 unidades
+HINT:  Reintentar más tarde o aceptar parcial
+CONTEXT:  PL/pgSQL function reservar_fefo(integer,smallint,boolean,timestamp with time zone) line 43 at RAISE
+SQL statement "SELECT * FROM reservar_fefo(p_id_pedido, l.nro_linea, p_permitir_parcial, p_fecha)"
+PL/pgSQL function reservar_pedido(integer,boolean,timestamp with time zone) line 9 at PERFORM
+ROLLBACK
+ reservas_del_pedido | estado_pedido | saldo_reservado_intacto 
+---------------------+---------------+-------------------------
+                   0 | ABIERTO       | t
+(1 row)
+
+ cancelar_pedido 
+-----------------
+               0
+(1 row)
+
+DROP TABLE
+== 4. Reserva y despacho del pedido 12 con COMMIT ==
+BEGIN
+ estado_pedido 
+---------------
+ RESERVADO
+(1 row)
+
+COMMIT
+BEGIN
+ reservas_consumidas 
+---------------------
+                   2
+(1 row)
+
+COMMIT
+ nro_linea | numero_lote | ubicacion | cantidad |  estado   | salida 
+-----------+-------------+-----------+----------+-----------+--------
+         1 | LE-2410B    | P-01      |       10 | CONSUMIDA |     43
+         2 | YO-2410B    | P-02      |        5 | CONSUMIDA |     42
+(2 rows)
+
+ divergencias_fisico | divergencias_reservado 
+---------------------+------------------------
+                   0 |                      0
+(1 row)
+

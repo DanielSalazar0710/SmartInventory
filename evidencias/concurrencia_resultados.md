@@ -1,6 +1,6 @@
 # Resultados del experimento de concurrencia
 
-Servidor: PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1). Fecha de ejecución: 2026-11-25 02:35:59.
+Servidor: PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1). Fecha de ejecución: 2026-11-25 02:56:28.
 Pausa de la sesión A entre decidir y escribir: 3.0 s; B arranca 0,5 s después de A.
 
 ### E0 · Sin protecciones (tabla de saldo sin CHECK, la aplicación escribe el valor calculado)
@@ -44,11 +44,10 @@ Saldo elegible inicial de FAR-SUERO-500: SU-2411A físico=4 reservado=0, SU-2411
 |---:|:---:|---|
 |  0.01 | A | BEGIN READ COMMITTED (intento 1); reserva con FOR UPDATE |
 |  0.51 | B | BEGIN READ COMMITTED (intento 1); reserva con FOR UPDATE |
-|  0.53 | B | queda ESPERANDO un bloqueo (transactionid) |
+|  0.52 | B | queda ESPERANDO un bloqueo (transactionid) |
 |  3.02 | A | reservas escritas: SU-2411A=4, SU-2411B=1 |
-|  3.02 | A | COMMIT ✔ |
+|  3.03 | A | COMMIT ✔ |
 |  3.03 | B | reservas escritas: SU-2411B=2 |
-|  3.03 | B | se libera el bloqueo y continúa |
 |  3.03 | B | COMMIT ✔ |
 
 Saldo final: SU-2411A físico=4 reservado=4, SU-2411B físico=3 reservado=3. Divergencias libro/balance: 0. Unidades reservadas en total: 7 de 7.
@@ -63,7 +62,7 @@ Saldo elegible inicial de FAR-SUERO-500: SU-2411A físico=4 reservado=0, SU-2411
 |---:|:---:|---|
 |  0.01 | A | BEGIN READ COMMITTED (intento 1); reserva con FOR UPDATE |
 |  0.51 | B | BEGIN READ COMMITTED (intento 1); reserva con FOR UPDATE |
-|  0.53 | B | queda ESPERANDO un bloqueo (transactionid) |
+|  0.52 | B | queda ESPERANDO un bloqueo (transactionid) |
 |  3.02 | A | reservas escritas: SU-2411A=4, SU-2411B=1 |
 |  3.02 | A | COMMIT ✔ |
 |  3.02 | B | P0002 Stock insuficiente para pedido 16 línea 1: faltan 3 unidades → ROLLBACK |
@@ -82,9 +81,9 @@ Saldo elegible inicial de FAR-SUERO-500: SU-2411A físico=4 reservado=0, SU-2411
 |  0.51 | B | BEGIN SERIALIZABLE (intento 1); reserva sin bloqueo |
 |  0.52 | B | reservas escritas: SU-2411A=2 |
 |  0.52 | B | COMMIT ✔ |
-|  3.02 | A | 40001 serialization_failure → ROLLBACK (could not serialize access due to concurrent update) |
-|  3.02 | A | el cliente REINTENTA la transacción completa |
-|  3.02 | A | BEGIN SERIALIZABLE (intento 2); reserva sin bloqueo |
+|  3.03 | A | 40001 serialization_failure → ROLLBACK (could not serialize access due to concurrent update) |
+|  3.03 | A | el cliente REINTENTA la transacción completa |
+|  3.03 | A | BEGIN SERIALIZABLE (intento 2); reserva sin bloqueo |
 |  6.03 | A | reservas escritas: SU-2411A=2, SU-2411B=3 |
 |  6.03 | A | COMMIT ✔ |
 
@@ -104,8 +103,8 @@ Saldo elegible inicial de FAR-SUERO-500: SU-2411A físico=4 reservado=0, SU-2411
 |  0.52 | B | COMMIT ✔ |
 |  3.02 | A | 40001 serialization_failure → ROLLBACK (could not serialize access due to concurrent update) |
 |  3.02 | A | el cliente REINTENTA la transacción completa |
-|  3.02 | A | BEGIN SERIALIZABLE (intento 2); reserva sin bloqueo |
-|  3.02 | A | P0002 Stock insuficiente para pedido 15 línea 1: faltan 3 unidades → ROLLBACK |
+|  3.03 | A | BEGIN SERIALIZABLE (intento 2); reserva sin bloqueo |
+|  3.03 | A | P0002 Stock insuficiente para pedido 15 línea 1: faltan 3 unidades → ROLLBACK |
 
 Saldo final: SU-2411A físico=4 reservado=4, SU-2411B físico=3 reservado=1. Divergencias libro/balance: 0. Unidades reservadas en total: 5 de 7.
 
@@ -120,10 +119,10 @@ Saldo final: SU-2411A físico=4 reservado=4, SU-2411B físico=3 reservado=1. Div
 |  0.21 | B | bloquea lote 13 |
 |  1.02 | A | queda ESPERANDO un bloqueo (transactionid) |
 |  1.23 | B | queda ESPERANDO un bloqueo (transactionid) |
-|  2.02 | B | bloquea lote 12 |
-|  2.02 | A | 40P01 deadlock detected → ROLLBACK |
-|  2.02 | B | se libera el bloqueo y continúa |
-|  2.02 | A | se libera el bloqueo y continúa |
+|  2.01 | B | bloquea lote 12 |
+|  2.01 | A | 40P01 deadlock detected → ROLLBACK |
+|  2.03 | A | se libera el bloqueo y continúa |
+|  2.03 | B | se libera el bloqueo y continúa |
 |  2.32 | B | COMMIT ✔ |
 
 **Orden FEFO común (ambas: SU-2411A→SU-2411B)**
@@ -131,7 +130,7 @@ Saldo final: SU-2411A físico=4 reservado=4, SU-2411B físico=3 reservado=1. Div
 | t (s) | Sesión | Evento |
 |---:|:---:|---|
 |  0.01 | A | bloquea lote 12 |
-|  0.23 | B | queda ESPERANDO un bloqueo (transactionid) |
+|  0.22 | B | queda ESPERANDO un bloqueo (transactionid) |
 |  1.02 | A | bloquea lote 13 |
 |  1.32 | A | COMMIT ✔ |
 |  1.32 | B | bloquea lote 12 |

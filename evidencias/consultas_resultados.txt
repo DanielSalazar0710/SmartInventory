@@ -1,0 +1,102 @@
+SET
+Null display is "—".
+== Q1. Stock disponible por SKU, bodega y ubicación ==
+      sku      |   bodega    | ubicacion |    tipo    | lotes | fisico | reservado | bloqueado | disponible 
+---------------+-------------+-----------+------------+-------+--------+-----------+-----------+------------
+ FAR-PARA-500  | UIO         | B-01-01   | RACK       |     1 |     50 |        20 |         0 |         30
+ FAR-PARA-500  | UIO         | Q-01      | CUARENTENA |     1 |     20 |         0 |        20 |          0
+ FAR-SUERO-500 | UIO         | P-01      | PICKING    |     3 |     17 |         0 |        10 |          7
+ FER-CINTA-48  | (sin stock) | —         | —          |     0 |      0 |         0 |         0 |          0
+ FER-TORN-M6   | GYE         | A-01-01   | RACK       |     1 |    250 |        30 |         0 |        220
+ FER-TORN-M6   | UIO         | A-01-02   | RACK       |     2 |    332 |         0 |         0 |        332
+ LAC-LECHE-1L  | UIO         | A-01-01   | RACK       |     2 |    226 |         0 |         0 |        226
+ LAC-LECHE-1L  | UIO         | P-01      | PICKING    |     1 |     50 |        40 |         0 |         10
+ LAC-YOG-200   | UIO         | P-02      | PICKING    |     3 |    132 |         0 |        12 |        120
+(9 rows)
+
+== Q2. Lotes próximos a vencer (ventana de 30 días) ==
+  categoria   |      sku      | numero_lote | fecha_vencimiento | dias_restantes | ubicaciones | fisico | reservado 
+--------------+---------------+-------------+-------------------+----------------+-------------+--------+-----------
+ 1-VENCIDO    | LAC-YOG-200   | YO-2409A    | 2026-10-16        |            -40 | UIO:P-02    |     12 |         0
+ 1-VENCIDO    | FAR-SUERO-500 | SU-2410     | 2026-11-22        |             -3 | UIO:P-01    |     10 |         0
+ 2-POR VENCER | LAC-YOG-200   | YO-2410B    | 2026-11-30        |              5 | UIO:P-02    |     90 |         0
+ 2-POR VENCER | FAR-SUERO-500 | SU-2411A    | 2026-12-10        |             15 | UIO:P-01    |      4 |         0
+ 2-POR VENCER | LAC-LECHE-1L  | LE-2410B    | 2026-12-15        |             20 | UIO:P-01    |     50 |        40
+ 2-POR VENCER | LAC-YOG-200   | YO-2410C    | 2026-12-20        |             25 | UIO:P-02    |     30 |         0
+(6 rows)
+
+== Q3. Plan de picking FEFO para FAR-SUERO-500 x 6 en UIO ==
+ orden_fefo | numero_lote | ubicacion | fecha_vencimiento | disponible | asignar | pendiente_despues 
+------------+-------------+-----------+-------------------+------------+---------+-------------------
+          1 | SU-2411A    | P-01      | 2026-12-10        |          4 |       4 |                 2
+          2 | SU-2411B    | P-01      | 2027-01-04        |          3 |       2 |                 0
+(2 rows)
+
+== Q4. Reposición: productos bajo mínimo y sugerencia de compra ==
+      sku      | fisico_vendible | en_ordenes_abiertas | reservado | posicion | minimo | objetivo | sugerencia_compra |          proveedor           | lead_time_dias | llegada_estimada 
+---------------+-----------------+---------------------+-----------+----------+--------+----------+-------------------+------------------------------+----------------+------------------
+ FAR-SUERO-500 |               7 |                   0 |         0 |        7 |     10 |       30 |                23 | Distribuidora Farma Pacífico |              5 | 2026-11-30
+ FER-CINTA-48  |               0 |                  60 |         0 |       60 |     80 |      150 |                90 | Ferretería Industrial Norte  |              7 | 2026-12-02
+(2 rows)
+
+== Q5. Trazabilidad del pedido 8 ==
+ id_pedido |     cliente     |   estado   | nro_linea |     sku      | solicitado | id_reserva | estado_reserva | asignado | numero_lote | fecha_vencimiento | ubicacion | mov_salida | fecha_salida |       origen_del_lote        
+-----------+-----------------+------------+-----------+--------------+------------+------------+----------------+----------+-------------+-------------------+-----------+------------+--------------+------------------------------
+         8 | Tienda Don Pepe | DESPACHADO |         1 | LAC-LECHE-1L |         70 |         10 | CONSUMIDA      |       60 | LE-2410B    | 2026-12-15        | A-01-01   |         28 | 2026-11-16   | OC 6 / PROV-LAC / GR GR-1005
+         8 | Tienda Don Pepe | DESPACHADO |         1 | LAC-LECHE-1L |         70 |         11 | CONSUMIDA      |       10 | LE-2410B    | 2026-12-15        | P-01      |         29 | 2026-11-16   | OC 6 / PROV-LAC / GR GR-1005
+(2 rows)
+
+== Q6. Recepciones parciales y órdenes completadas ==
+ id_oc | proveedor | bodega | estado_oc | nro_linea |      sku      | ordenado | recibido | pendiente | recepciones | estado_linea | oc_completada 
+-------+-----------+--------+-----------+-----------+---------------+----------+----------+-----------+-------------+--------------+---------------
+     6 | PROV-LAC  | UIO    | PARCIAL   |         1 | LAC-LECHE-1L  |      200 |      200 |         0 |           1 | COMPLETA     | f
+     6 | PROV-LAC  | UIO    | PARCIAL   |         2 | LAC-YOG-200   |      150 |      120 |        30 |           2 | PARCIAL      | f
+     9 | PROV-FAR  | GYE    | ABIERTA   |         1 | FAR-PARA-500  |       80 |        0 |        80 |           0 | SIN RECIBIR  | f
+    10 | PROV-FER  | UIO    | ABIERTA   |         1 | FER-CINTA-48  |       60 |        0 |        60 |           0 | SIN RECIBIR  | f
+     1 | PROV-LAC  | UIO    | COMPLETA  |         1 | LAC-QUESO-500 |       60 |       60 |         0 |           1 | COMPLETA     | t
+     2 | PROV-LAC  | UIO    | COMPLETA  |         1 | LAC-LECHE-1L  |      300 |      300 |         0 |           1 | COMPLETA     | t
+     2 | PROV-LAC  | UIO    | COMPLETA  |         2 | LAC-YOG-200   |      200 |      200 |         0 |           1 | COMPLETA     | t
+     3 | PROV-FAR  | UIO    | COMPLETA  |         1 | FAR-PARA-500  |      100 |      100 |         0 |           1 | COMPLETA     | t
+     3 | PROV-FAR  | UIO    | COMPLETA  |         2 | FAR-SUERO-500 |       40 |       40 |         0 |           1 | COMPLETA     | t
+     4 | PROV-FER  | UIO    | COMPLETA  |         1 | FER-TORN-M6   |      500 |      500 |         0 |           1 | COMPLETA     | t
+     5 | PROV-FER  | GYE    | COMPLETA  |         1 | FER-TORN-M6   |      300 |      300 |         0 |           1 | COMPLETA     | t
+     8 | PROV-FAR  | UIO    | COMPLETA  |         1 | FAR-SUERO-500 |        7 |        7 |         0 |           1 | COMPLETA     | t
+(12 rows)
+
+== Q7. Rotación y movimientos por SKU y mes ==
+      sku      |   mes   | n_movimientos | entradas | salidas | saldo_inicial | saldo_final | inventario_promedio | rotacion 
+---------------+---------+---------------+----------+---------+---------------+-------------+---------------------+----------
+ FAR-PARA-500  | 2026-09 |             3 |      100 |      30 |             0 |          70 |                35.0 |     0.86
+ FAR-PARA-500  | 2026-10 |             0 |        0 |       0 |            70 |          70 |                70.0 |     0.00
+ FAR-PARA-500  | 2026-11 |             2 |        0 |       0 |            70 |          70 |                70.0 |     0.00
+ FAR-SUERO-500 | 2026-09 |             1 |       40 |       0 |             0 |          40 |                20.0 |     0.00
+ FAR-SUERO-500 | 2026-10 |             1 |        0 |      30 |            40 |          10 |                25.0 |     1.20
+ FAR-SUERO-500 | 2026-11 |             2 |        7 |       0 |            10 |          17 |                13.5 |     0.00
+ FER-TORN-M6   | 2026-10 |             4 |      800 |     200 |             0 |         600 |               300.0 |     0.67
+ FER-TORN-M6   | 2026-11 |             2 |        0 |      20 |           600 |         582 |               591.0 |     0.03
+ LAC-LECHE-1L  | 2026-09 |             3 |      300 |     150 |             0 |         150 |                75.0 |     2.00
+ LAC-LECHE-1L  | 2026-10 |             5 |      200 |       0 |           150 |         350 |               250.0 |     0.00
+ LAC-LECHE-1L  | 2026-11 |             3 |        0 |      70 |           350 |         276 |               313.0 |     0.22
+ LAC-QUESO-500 | 2026-08 |             1 |       60 |       0 |             0 |          60 |                30.0 |     0.00
+ LAC-QUESO-500 | 2026-09 |             0 |        0 |       0 |            60 |          60 |                60.0 |     0.00
+ LAC-QUESO-500 | 2026-10 |             1 |        0 |      60 |            60 |           0 |                30.0 |     2.00
+ LAC-YOG-200   | 2026-09 |             2 |      200 |      80 |             0 |         120 |                60.0 |     1.33
+ LAC-YOG-200   | 2026-10 |             2 |       90 |     108 |           120 |         102 |               111.0 |     0.97
+ LAC-YOG-200   | 2026-11 |             1 |       30 |       0 |           102 |         132 |               117.0 |     0.00
+(17 rows)
+
+== Q8. Quiebres y nivel de servicio ==
+   mes   | lineas | a_tiempo_completas | tarde | parciales | no_atendidas | nivel_servicio_pct | fill_rate_pct 
+---------+--------+--------------------+-------+-----------+--------------+--------------------+---------------
+ 2026-09 |      4 |                  2 |     2 |         0 |            0 |               50.0 |         100.0
+ 2026-10 |      4 |                  4 |     0 |         0 |            0 |              100.0 |         100.0
+ 2026-11 |      3 |                  2 |     0 |         0 |            1 |               66.7 |          90.0
+ TOTAL   |     11 |                  8 |     2 |         0 |            1 |               72.7 |          98.7
+(4 rows)
+
+-- Detalle de quiebres (líneas no atendidas o parciales)
+ id_pedido | nro_linea |     sku      | fecha_compromiso | solicitado | despachado | faltante 
+-----------+-----------+--------------+------------------+------------+------------+----------
+         7 |         2 | FER-CINTA-48 | 2026-11-11       |         10 |          0 |       10
+(1 row)
+

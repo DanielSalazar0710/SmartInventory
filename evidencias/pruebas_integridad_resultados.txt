@@ -1,0 +1,48 @@
+ id  | regla |                              descripcion                              | esperado | obtenido | resultado |                                          mensaje                                           
+-----+-------+-----------------------------------------------------------------------+----------+----------+-----------+--------------------------------------------------------------------------------------------
+ T01 | R13   | FK inválida: línea de pedido con producto inexistente                 | 23503    | 23503    | OK        | insert or update on table "detalle_pedido" violates foreign key constraint "fk_detalle_ped
+ T02 | R06   | Cantidad negativa en línea de orden de compra                         | 23514    | 23514    | OK        | new row for relation "detalle_compra" violates check constraint "ck_detalle_compra_cantida
+ T03 | R03   | Clave duplicada: mismo número de lote para el mismo producto          | 23505    | 23505    | OK        | duplicate key value violates unique constraint "uq_lote_producto_numero"
+ T04 | R04   | Fecha inconsistente: vencimiento anterior a la fabricación            | 23514    | 23514    | OK        | new row for relation "lote" violates check constraint "ck_lote_fechas"
+ T05 | R11   | Transición no permitida: pedido DESPACHADO vuelve a ABIERTO           | 23514    | 23514    | OK        | Transición de pedido no permitida: DESPACHADO -> ABIERTO
+ T06 | R11   | Estado de pedido fuera del dominio                                    | 23514    | 23514    | OK        | new row for relation "pedido" violates check constraint "ck_pedido_estado"
+ T07 | R02   | SKU duplicado                                                         | 23505    | 23505    | OK        | duplicate key value violates unique constraint "uq_producto_sku"
+ T08 | R02   | Código de ubicación duplicado dentro de la misma bodega               | 23505    | 23505    | OK        | duplicate key value violates unique constraint "uq_ubicacion_bodega_codigo"
+ T09 | R02   | El mismo código de ubicación sí se permite en otra bodega             | 00000    | 00000    | OK        | aceptada
+ T10 | R18   | Stock objetivo menor que el mínimo                                    | 23514    | 23514    | OK        | new row for relation "producto" violates check constraint "ck_producto_objetivo"
+ T11 | R05   | Producto con vencimiento exige fecha de vencimiento en el lote        | 23514    | 23514    | OK        | El producto 5 controla vencimiento: el lote SIN-FECHA requiere fecha_vencimiento
+ T12 | R05   | Producto sin vencimiento acepta lote sin fecha                        | 00000    | 00000    | OK        | aceptada
+ T13 | R19   | Producto inactivo no admite nuevas líneas de pedido                   | 23514    | 23514    | OK        | Producto 1 inactivo: no admite nuevas líneas en detalle_pedido
+ T14 | R19   | Producto con historial no se puede borrar                             | 23503    | 23503    | OK        | update or delete on table "producto" violates foreign key constraint "fk_lote_producto" on
+ T15 | R01   | Ajuste de salida mayor que el saldo físico (stock negativo)           | 23514    | 23514    | OK        | new row for relation "existencia_lote" violates check constraint "ck_existencia_fisica"
+ T16 | R01   | Traslado que dejaría lo reservado por encima del físico               | 23514    | 23514    | OK        | new row for relation "existencia_lote" violates check constraint "ck_existencia_reservada"
+ T17 | R07   | Libro inmutable: UPDATE sobre movimiento                              | P0001    | P0001    | OK        | La tabla movimiento es append-only: UPDATE no permitido. Registre un movimiento compensato
+ T18 | R07   | Libro inmutable: DELETE sobre movimiento                              | P0001    | P0001    | OK        | La tabla movimiento es append-only: DELETE no permitido. Registre un movimiento compensato
+ T19 | R07   | Libro inmutable: TRUNCATE sobre movimiento                            | P0001    | P0001    | OK        | La tabla movimiento es append-only: TRUNCATE no permitido. Registre un movimiento compensa
+ T20 | R08   | La aplicación no puede escribir el saldo directamente                 | 42501    | 42501    | OK        | permission denied for table existencia_lote
+ T21 | R08   | La aplicación sí registra movimientos y el trigger actualiza el saldo | 00000    | 00000    | OK        | aceptada
+ T22 | R06   | SALIDA sin reserva asociada                                           | 23514    | 23514    | OK        | Una SALIDA debe corresponder a una reserva CONSUMIDA del mismo lote, ubicación y cantidad
+ T23 | R06   | Tipo de movimiento fuera del dominio                                  | 23514    | 23514    | OK        | new row for relation "movimiento" violates check constraint "ck_mov_forma"
+ T24 | R20   | Reverso que no es espejo del movimiento original                      | 23514    | 23514    | OK        | El REVERSO del movimiento 1 debe tener el mismo lote y cantidad y ubicaciones invertidas
+ T25 | R20   | Un movimiento no se revierte dos veces                                | 23505    | 23505    | OK        | duplicate key value violates unique constraint "uq_mov_revertido"
+ T26 | R09   | Sobreasignación: reservar más que el disponible del lote              | 23514    | 23514    | OK        | new row for relation "existencia_lote" violates check constraint "ck_existencia_reservada"
+ T27 | R12   | Reservar un lote de otro producto                                     | 23503    | 23503    | OK        | insert or update on table "reserva" violates foreign key constraint "fk_reserva_lote_produ
+ T28 | R10   | Reservar un lote en una ubicación donde no existe                     | 23503    | 23503    | OK        | insert or update on table "reserva" violates foreign key constraint "fk_reserva_existencia
+ T29 | R14   | Reservar un lote vencido                                              | 23514    | 23514    | OK        | Lote 3 vencido (2026-10-16): no es elegible para reserva
+ T30 | R14   | Reservar stock en cuarentena                                          | 23514    | 23514    | OK        | Ubicación 2 en CUARENTENA: no es elegible
+ T31 | R15   | Una reserva CONSUMIDA no vuelve a ACTIVA                              | 23514    | 23514    | OK        | Transición de reserva no permitida: CONSUMIDA -> ACTIVA
+ T32 | R16   | Cancelar un pedido libera sus reservas y el saldo reservado vuelve    | 00000    | 00000    | OK        | aceptada
+ T33 | R17   | FEFO: toma primero el lote que vence antes y excluye el vencido       | 00000    | 00000    | OK        | aceptada
+ T34 | R17   | Fallo parcial: si una línea no se cubre, no queda ninguna reserva     | 00000    | 00000    | OK        | aceptada
+ T35 | R21   | Recepción parcial válida deja la OC en PARCIAL y genera ENTRADA       | 00000    | 00000    | OK        | aceptada
+ T36 | R21   | Sobre-recepción: recibir más de lo ordenado                           | 23514    | 23514    | OK        | Sobre-recepción en OC 10 línea 1: pedido 60, ya recibido 0, intenta 61
+ T37 | R21   | Recepción de un producto que no está en esa línea de la OC            | 23503    | 23503    | OK        | insert or update on table "recepcion_linea" violates foreign key constraint "fk_rl_detalle
+ T38 | R21   | Recepción en una OC cancelada                                         | 23514    | 23514    | OK        | OC 7 en estado CANCELADA: no admite recepciones
+ T39 | R08   | Conciliación final: libro y balance coinciden (0 filas)               | 00000    | 00000    | OK        | aceptada
+(39 rows)
+
+ pruebas | ok | fallas 
+---------+----+--------
+      39 | 39 |      0
+(1 row)
+

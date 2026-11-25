@@ -1,0 +1,20 @@
+name: smart_inventory_deber2
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: si_admin
+      POSTGRES_PASSWORD: si_local
+      POSTGRES_DB: smart_inventory
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - si_data:/var/lib/postgresql/data
+      - ./:/work:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U si_admin -d smart_inventory"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+volumes:
+  si_data:

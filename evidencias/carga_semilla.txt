@@ -1,0 +1,10 @@
+       tabla       | count 
+-------------------+-------
+ movimientos       |    33
+ existencias       |    19
+ lotes             |    13
+ pedidos           |    12
+ reservas          |    15
+ ordenes de compra |    10
+(6 rows)
+
