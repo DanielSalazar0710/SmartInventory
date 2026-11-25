@@ -1,0 +1,321 @@
+SET
+SET
+SET
+Pager usage is off.
+############## CARDINALIDADES DEL DATASET ##############
+      tabla      | filas 
+-----------------+-------
+ movimiento      | 74530
+ detalle_pedido  | 50000
+ reserva         | 49901
+ existencia_lote | 26384
+ lote            | 24000
+ detalle_compra  | 24000
+ recepcion_linea | 21600
+ pedido          | 20000
+ orden_compra    |  6000
+ recepcion       |  5400
+ producto        |  2000
+ cliente         |   500
+ ubicacion       |   300
+ proveedor       |    20
+ bodega          |     3
+(15 rows)
+
+DROP INDEX
+ANALYZE
+############## FASE 1 · SIN ÍNDICES PROPUESTOS ##############
+---- C1 FEFO
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=110.26..110.27 rows=1 width=31) (actual time=0.056..0.057 rows=3 loops=1)
+   Sort Key: l.fecha_vencimiento, l.recibido_en, l.numero_lote
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=61
+   InitPlan 1 (returns $0)
+     ->  Index Scan using uq_producto_sku on producto  (cost=0.28..8.29 rows=1 width=4) (actual time=0.004..0.005 rows=1 loops=1)
+           Index Cond: ((sku)::text = 'SKU-00823'::text)
+           Buffers: shared hit=3
+   ->  Nested Loop  (cost=4.81..101.96 rows=1 width=31) (actual time=0.027..0.047 rows=3 loops=1)
+         Buffers: shared hit=61
+         ->  Nested Loop  (cost=4.67..101.44 rows=3 width=35) (actual time=0.016..0.036 rows=10 loops=1)
+               Buffers: shared hit=41
+               ->  Bitmap Heap Scan on lote l  (cost=4.38..43.22 rows=7 width=23) (actual time=0.013..0.020 rows=8 loops=1)
+                     Recheck Cond: (id_producto = $0)
+                     Filter: ((fecha_vencimiento IS NULL) OR (fecha_vencimiento > CURRENT_DATE))
+                     Rows Removed by Filter: 4
+                     Heap Blocks: exact=12
+                     Buffers: shared hit=17
+                     ->  Bitmap Index Scan on uq_lote_producto_numero  (cost=0.00..4.38 rows=12 width=0) (actual time=0.009..0.010 rows=12 loops=1)
+                           Index Cond: (id_producto = $0)
+                           Buffers: shared hit=5
+               ->  Index Scan using pk_existencia_lote on existencia_lote e  (cost=0.29..8.31 rows=1 width=16) (actual time=0.001..0.001 rows=1 loops=8)
+                     Index Cond: (id_lote = l.id_lote)
+                     Filter: (cantidad_fisica > cantidad_reservada)
+                     Buffers: shared hit=24
+         ->  Index Scan using pk_ubicacion on ubicacion u  (cost=0.15..0.17 rows=1 width=4) (actual time=0.001..0.001 rows=0 loops=10)
+               Index Cond: (id_ubicacion = e.id_ubicacion)
+               Filter: (((tipo)::text <> 'CUARENTENA'::text) AND (id_bodega = 1))
+               Rows Removed by Filter: 1
+               Buffers: shared hit=20
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.217 ms
+ Execution Time: 0.077 ms
+(34 rows)
+
+---- C2 Vencimientos
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=2403.24..2440.44 rows=1653 width=29) (actual time=9.833..10.408 rows=1356 loops=1)
+   Group Key: l.fecha_vencimiento, p.sku, l.numero_lote
+   Buffers: shared hit=1308
+   ->  Sort  (cost=2403.24..2407.38 rows=1653 width=25) (actual time=9.826..9.906 rows=1637 loops=1)
+         Sort Key: l.fecha_vencimiento, p.sku, l.numero_lote
+         Sort Method: quicksort  Memory: 138kB
+         Buffers: shared hit=1308
+         ->  Hash Join  (cost=799.91..2314.88 rows=1653 width=25) (actual time=2.690..9.001 rows=1637 loops=1)
+               Hash Cond: (l.id_producto = p.id_producto)
+               Buffers: shared hit=1308
+               ->  Hash Join  (cost=735.91..2246.53 rows=1653 width=19) (actual time=2.155..8.104 rows=1637 loops=1)
+                     Hash Cond: (e.id_lote = l.id_lote)
+                     Buffers: shared hit=1289
+                     ->  Seq Scan on existencia_lote e  (cost=0.00..1441.80 rows=26213 width=8) (actual time=0.004..3.579 rows=26215 loops=1)
+                           Filter: (cantidad_fisica > 0)
+                           Rows Removed by Filter: 169
+                           Buffers: shared hit=1112
+                     ->  Hash  (cost=717.00..717.00 rows=1513 width=19) (actual time=2.135..2.135 rows=1514 loops=1)
+                           Buckets: 2048  Batches: 1  Memory Usage: 93kB
+                           Buffers: shared hit=177
+                           ->  Seq Scan on lote l  (cost=0.00..717.00 rows=1513 width=19) (actual time=0.005..1.916 rows=1514 loops=1)
+                                 Filter: ((fecha_vencimiento > CURRENT_DATE) AND (fecha_vencimiento <= (CURRENT_DATE + 30)))
+                                 Rows Removed by Filter: 22486
+                                 Buffers: shared hit=177
+               ->  Hash  (cost=39.00..39.00 rows=2000 width=14) (actual time=0.529..0.530 rows=2000 loops=1)
+                     Buckets: 2048  Batches: 1  Memory Usage: 110kB
+                     Buffers: shared hit=19
+                     ->  Seq Scan on producto p  (cost=0.00..39.00 rows=2000 width=14) (actual time=0.005..0.219 rows=2000 loops=1)
+                           Buffers: shared hit=19
+ Planning:
+   Buffers: shared hit=29
+ Planning Time: 0.307 ms
+ Execution Time: 10.492 ms
+(33 rows)
+
+---- C3 Trazabilidad
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=1735.39..2216.08 rows=3 width=33) (actual time=3.155..6.433 rows=5 loops=1)
+   Buffers: shared hit=1274
+   ->  Hash Right Join  (cost=1735.10..2191.15 rows=3 width=25) (actual time=3.149..6.418 rows=5 loops=1)
+         Hash Cond: (r.nro_linea = d.nro_linea)
+         Buffers: shared hit=1259
+         ->  Hash Right Join  (cost=1730.72..2186.75 rows=3 width=29) (actual time=3.137..6.401 rows=5 loops=1)
+               Hash Cond: (rl.id_lote = l.id_lote)
+               Buffers: shared hit=1256
+               ->  Seq Scan on recepcion_linea rl  (cost=0.00..375.00 rows=21600 width=8) (actual time=0.004..1.474 rows=21600 loops=1)
+                     Buffers: shared hit=159
+               ->  Hash  (cost=1730.68..1730.68 rows=3 width=29) (actual time=3.026..3.027 rows=5 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1097
+                     ->  Nested Loop Left Join  (cost=0.29..1730.68 rows=3 width=29) (actual time=2.542..3.023 rows=5 loops=1)
+                           Buffers: shared hit=1097
+                           ->  Seq Scan on reserva r  (cost=0.00..1705.76 rows=3 width=22) (actual time=2.533..3.003 rows=5 loops=1)
+                                 Filter: (id_pedido = 16403)
+                                 Rows Removed by Filter: 49896
+                                 Buffers: shared hit=1082
+                           ->  Index Scan using uq_lote_id_producto on lote l  (cost=0.29..8.30 rows=1 width=11) (actual time=0.003..0.003 rows=1 loops=5)
+                                 Index Cond: (id_lote = r.id_lote)
+                                 Buffers: shared hit=15
+         ->  Hash  (cost=4.34..4.34 rows=3 width=6) (actual time=0.009..0.010 rows=4 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=3
+               ->  Index Only Scan using uq_detalle_pedido_linea_producto on detalle_pedido d  (cost=0.29..4.34 rows=3 width=6) (actual time=0.006..0.007 rows=4 loops=1)
+                     Index Cond: (id_pedido = 16403)
+                     Heap Fetches: 0
+                     Buffers: shared hit=3
+   ->  Index Scan using uq_mov_reserva on movimiento m  (cost=0.29..8.31 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=5)
+         Index Cond: (id_reserva = r.id_reserva)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=40
+ Planning Time: 0.439 ms
+ Execution Time: 6.463 ms
+(36 rows)
+
+---- Costo de escritura sin índices: 2 000 traslados (se deshacen)
+Timing is on.
+BEGIN
+Time: 0.145 ms
+ count 
+-------
+  2000
+(1 row)
+
+Time: 350.134 ms
+ROLLBACK
+Time: 0.274 ms
+Timing is off.
+############## FASE 2 · CON ÍNDICES PROPUESTOS ##############
+SET
+SET
+CREATE VIEW
+CREATE VIEW
+CREATE VIEW
+GRANT
+REVOKE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ANALYZE
+SET
+SET
+---- C1 FEFO
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=106.25..106.25 rows=1 width=31) (actual time=0.061..0.062 rows=3 loops=1)
+   Sort Key: l.fecha_vencimiento, l.recibido_en, l.numero_lote
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=56
+   InitPlan 1 (returns $0)
+     ->  Index Scan using uq_producto_sku on producto  (cost=0.28..8.29 rows=1 width=4) (actual time=0.005..0.006 rows=1 loops=1)
+           Index Cond: ((sku)::text = 'SKU-00823'::text)
+           Buffers: shared hit=3
+   ->  Nested Loop  (cost=4.81..97.94 rows=1 width=31) (actual time=0.034..0.056 rows=3 loops=1)
+         Buffers: shared hit=56
+         ->  Nested Loop  (cost=4.67..97.42 rows=3 width=35) (actual time=0.021..0.043 rows=10 loops=1)
+               Buffers: shared hit=36
+               ->  Bitmap Heap Scan on lote l  (cost=4.38..43.22 rows=7 width=23) (actual time=0.016..0.024 rows=8 loops=1)
+                     Recheck Cond: (id_producto = $0)
+                     Filter: ((fecha_vencimiento IS NULL) OR (fecha_vencimiento > CURRENT_DATE))
+                     Rows Removed by Filter: 4
+                     Heap Blocks: exact=12
+                     Buffers: shared hit=17
+                     ->  Bitmap Index Scan on uq_lote_producto_numero  (cost=0.00..4.38 rows=12 width=0) (actual time=0.012..0.012 rows=12 loops=1)
+                           Index Cond: (id_producto = $0)
+                           Buffers: shared hit=5
+               ->  Index Only Scan using ix_existencia_con_disponible on existencia_lote e  (cost=0.29..7.73 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=8)
+                     Index Cond: (id_lote = l.id_lote)
+                     Heap Fetches: 2
+                     Buffers: shared hit=19
+         ->  Index Scan using pk_ubicacion on ubicacion u  (cost=0.15..0.17 rows=1 width=4) (actual time=0.001..0.001 rows=0 loops=10)
+               Index Cond: (id_ubicacion = e.id_ubicacion)
+               Filter: (((tipo)::text <> 'CUARENTENA'::text) AND (id_bodega = 1))
+               Rows Removed by Filter: 1
+               Buffers: shared hit=20
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.252 ms
+ Execution Time: 0.083 ms
+(34 rows)
+
+---- C2 Vencimientos
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=1921.09..1958.28 rows=1653 width=29) (actual time=12.586..13.488 rows=1356 loops=1)
+   Group Key: l.fecha_vencimiento, p.sku, l.numero_lote
+   Buffers: shared hit=1310
+   ->  Sort  (cost=1921.09..1925.22 rows=1653 width=25) (actual time=12.577..12.693 rows=1637 loops=1)
+         Sort Key: l.fecha_vencimiento, p.sku, l.numero_lote
+         Sort Method: quicksort  Memory: 138kB
+         Buffers: shared hit=1310
+         ->  Hash Join  (cost=317.76..1832.73 rows=1653 width=25) (actual time=1.892..11.381 rows=1637 loops=1)
+               Hash Cond: (l.id_producto = p.id_producto)
+               Buffers: shared hit=1310
+               ->  Hash Join  (cost=253.76..1764.38 rows=1653 width=19) (actual time=1.171..10.132 rows=1637 loops=1)
+                     Hash Cond: (e.id_lote = l.id_lote)
+                     Buffers: shared hit=1291
+                     ->  Seq Scan on existencia_lote e  (cost=0.00..1441.80 rows=26213 width=8) (actual time=0.005..5.525 rows=26215 loops=1)
+                           Filter: (cantidad_fisica > 0)
+                           Rows Removed by Filter: 169
+                           Buffers: shared hit=1112
+                     ->  Hash  (cost=234.85..234.85 rows=1513 width=19) (actual time=1.138..1.139 rows=1514 loops=1)
+                           Buckets: 2048  Batches: 1  Memory Usage: 93kB
+                           Buffers: shared hit=179
+                           ->  Bitmap Heap Scan on lote l  (cost=23.80..234.85 rows=1513 width=19) (actual time=0.137..0.781 rows=1514 loops=1)
+                                 Recheck Cond: ((fecha_vencimiento > CURRENT_DATE) AND (fecha_vencimiento <= (CURRENT_DATE + 30)))
+                                 Heap Blocks: exact=176
+                                 Buffers: shared hit=179
+                                 ->  Bitmap Index Scan on ix_lote_vencimiento  (cost=0.00..23.43 rows=1513 width=0) (actual time=0.076..0.076 rows=1514 loops=1)
+                                       Index Cond: ((fecha_vencimiento > CURRENT_DATE) AND (fecha_vencimiento <= (CURRENT_DATE + 30)))
+                                       Buffers: shared hit=3
+               ->  Hash  (cost=39.00..39.00 rows=2000 width=14) (actual time=0.716..0.716 rows=2000 loops=1)
+                     Buckets: 2048  Batches: 1  Memory Usage: 110kB
+                     Buffers: shared hit=19
+                     ->  Seq Scan on producto p  (cost=0.00..39.00 rows=2000 width=14) (actual time=0.004..0.296 rows=2000 loops=1)
+                           Buffers: shared hit=19
+ Planning:
+   Buffers: shared hit=29
+ Planning Time: 0.505 ms
+ Execution Time: 13.607 ms
+(36 rows)
+
+---- C3 Trazabilidad
+                                                                                   QUERY PLAN                                                                                   
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=1.45..67.13 rows=3 width=33) (actual time=0.028..0.068 rows=5 loops=1)
+   Buffers: shared hit=51
+   ->  Nested Loop Left Join  (cost=1.16..66.08 rows=3 width=33) (actual time=0.024..0.051 rows=5 loops=1)
+         Buffers: shared hit=36
+         ->  Nested Loop Left Join  (cost=0.87..41.15 rows=3 width=25) (actual time=0.020..0.038 rows=5 loops=1)
+               Buffers: shared hit=21
+               ->  Merge Left Join  (cost=0.58..16.23 rows=3 width=18) (actual time=0.014..0.020 rows=5 loops=1)
+                     Merge Cond: (d.nro_linea = r.nro_linea)
+                     Buffers: shared hit=6
+                     ->  Index Only Scan using uq_detalle_pedido_linea_producto on detalle_pedido d  (cost=0.29..4.34 rows=3 width=6) (actual time=0.006..0.007 rows=4 loops=1)
+                           Index Cond: (id_pedido = 16403)
+                           Heap Fetches: 0
+                           Buffers: shared hit=3
+                     ->  Index Scan using ix_reserva_linea on reserva r  (cost=0.29..11.84 rows=3 width=22) (actual time=0.005..0.006 rows=5 loops=1)
+                           Index Cond: (id_pedido = 16403)
+                           Buffers: shared hit=3
+               ->  Index Scan using uq_lote_id_producto on lote l  (cost=0.29..8.30 rows=1 width=11) (actual time=0.003..0.003 rows=1 loops=5)
+                     Index Cond: (id_lote = r.id_lote)
+                     Buffers: shared hit=15
+         ->  Index Scan using uq_mov_reserva on movimiento m  (cost=0.29..8.31 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=5)
+               Index Cond: (id_reserva = r.id_reserva)
+               Buffers: shared hit=15
+   ->  Index Scan using ix_recepcion_linea_lote on recepcion_linea rl  (cost=0.29..0.34 rows=1 width=8) (actual time=0.002..0.003 rows=1 loops=5)
+         Index Cond: (id_lote = l.id_lote)
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=52
+ Planning Time: 0.674 ms
+ Execution Time: 0.100 ms
+(29 rows)
+
+---- Costo de escritura con índices: 2 000 traslados (se deshacen)
+Timing is on.
+BEGIN
+Time: 0.231 ms
+ count 
+-------
+  2000
+(1 row)
+
+Time: 407.363 ms
+ROLLBACK
+Time: 0.275 ms
+Timing is off.
+---- Tamaño de los índices propuestos
+            indice            |      tabla      | tamano  
+------------------------------+-----------------+---------
+ ix_movimiento_lote_fecha     | movimiento      | 2504 kB
+ ix_reserva_linea             | reserva         | 1112 kB
+ ix_existencia_con_disponible | existencia_lote | 1064 kB
+ ix_recepcion_linea_oc        | recepcion_linea | 496 kB
+ ix_recepcion_linea_lote      | recepcion_linea | 496 kB
+ ix_detalle_pedido_producto   | detalle_pedido  | 392 kB
+ ix_lote_vencimiento          | lote            | 160 kB
+ ix_pedido_compromiso         | pedido          | 160 kB
+ ix_pedido_abiertos           | pedido          | 16 kB
+ ix_reserva_existencia        | reserva         | 16 kB
+(10 rows)
+
