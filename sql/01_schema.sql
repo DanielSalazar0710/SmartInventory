@@ -648,8 +648,13 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Pedido % no está RESERVADO/PARCIAL', p_id_pedido USING ERRCODE = 'P0002';
   END IF;
-  FOR r IN SELECT * FROM reserva WHERE id_pedido = p_id_pedido AND estado = 'ACTIVA'
-            ORDER BY id_lote, id_ubicacion FOR UPDATE LOOP
+  -- mismo orden global de bloqueo que la reserva (FEFO) para no formar ciclos
+  FOR r IN SELECT rv.* FROM reserva rv
+             JOIN lote l      ON l.id_lote = rv.id_lote
+             JOIN ubicacion u ON u.id_ubicacion = rv.id_ubicacion
+            WHERE rv.id_pedido = p_id_pedido AND rv.estado = 'ACTIVA'
+            ORDER BY l.fecha_vencimiento NULLS LAST, l.recibido_en, l.numero_lote, u.codigo
+              FOR UPDATE OF rv LOOP
     UPDATE reserva SET estado = 'CONSUMIDA', cerrada_en = p_fecha WHERE id_reserva = r.id_reserva;
     INSERT INTO movimiento (tipo, id_lote, id_ubicacion_origen, cantidad, ocurrido_en, id_reserva)
     VALUES ('SALIDA', r.id_lote, r.id_ubicacion, r.cantidad, p_fecha, r.id_reserva);
@@ -662,12 +667,25 @@ END $$;
 -- 6.4 Cancelación: libera reservas ACTIVAS (el saldo reservado vuelve por trigger).
 CREATE FUNCTION cancelar_pedido(p_id_pedido int, p_fecha timestamptz DEFAULT now())
 RETURNS integer LANGUAGE plpgsql AS $$
-DECLARE n int;
+DECLARE n int; r record;
 BEGIN
   PERFORM 1 FROM pedido WHERE id_pedido = p_id_pedido FOR UPDATE;
-  UPDATE reserva SET estado = 'LIBERADA', cerrada_en = p_fecha
-   WHERE id_pedido = p_id_pedido AND estado = 'ACTIVA';
-  GET DIAGNOSTICS n = ROW_COUNT;
+  -- libera en orden FEFO: mismo orden de bloqueo que reservar y despachar
+  WITH orden AS (
+    SELECT rv.id_reserva FROM reserva rv
+      JOIN lote l      ON l.id_lote = rv.id_lote
+      JOIN ubicacion u ON u.id_ubicacion = rv.id_ubicacion
+     WHERE rv.id_pedido = p_id_pedido AND rv.estado = 'ACTIVA'
+     ORDER BY l.fecha_vencimiento NULLS LAST, l.recibido_en, l.numero_lote, u.codigo
+       FOR UPDATE OF rv)
+  SELECT count(*) INTO n FROM orden;
+  FOR r IN SELECT rv.id_reserva FROM reserva rv
+             JOIN lote l      ON l.id_lote = rv.id_lote
+             JOIN ubicacion u ON u.id_ubicacion = rv.id_ubicacion
+            WHERE rv.id_pedido = p_id_pedido AND rv.estado = 'ACTIVA'
+            ORDER BY l.fecha_vencimiento NULLS LAST, l.recibido_en, l.numero_lote, u.codigo LOOP
+    UPDATE reserva SET estado = 'LIBERADA', cerrada_en = p_fecha WHERE id_reserva = r.id_reserva;
+  END LOOP;
   UPDATE pedido SET estado = 'CANCELADO' WHERE id_pedido = p_id_pedido;
   RETURN n;
 END $$;

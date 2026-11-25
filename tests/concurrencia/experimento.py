@@ -10,12 +10,14 @@ Uso:
     pip install "psycopg[binary]"
     PGHOST=localhost PGPORT=55433 PGUSER=si_admin PGPASSWORD=si_local PGDATABASE=smart_inventory \
         python tests/concurrencia/experimento.py
+    (si psql no está instalado, recarga los scripts con el psql del contenedor de docker-compose)
 
 Salida: imprime el informe y lo guarda en evidencias/concurrencia_resultados.md
 """
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -40,14 +42,19 @@ def conectar(autocommit: bool = False) -> psycopg.Connection:
     return psycopg.connect(autocommit=autocommit, options="-c search_path=si,public")
 
 
+def psql(script: str) -> list[str]:
+    """Comando psql local o, si no está instalado, el psql del contenedor de docker-compose."""
+    if shutil.which("psql"):
+        return ["psql", "-q", "-v", "ON_ERROR_STOP=1", "-f", str(RAIZ / script)]
+    return ["docker", "compose", "-f", str(RAIZ / "docker-compose.yml"), "exec", "-T", "db",
+            "psql", "-q", "-U", os.environ.get("PGUSER", "si_admin"),
+            "-d", os.environ.get("PGDATABASE", "smart_inventory"), "-v", "ON_ERROR_STOP=1", "-f", f"/work/{script}"]
+
+
 def recargar() -> None:
-    """Deja la base en el estado exacto de la semilla."""
-    for script in ("sql/01_schema.sql", "sql/02_seed.sql"):
-        subprocess.run(["psql", "-q", "-v", "ON_ERROR_STOP=1", "-f", str(RAIZ / script)],
-                       check=True, stdout=subprocess.DEVNULL)
-    subprocess.run(["psql", "-q", "-v", "ON_ERROR_STOP=1", "-c", "SET client_min_messages=warning",
-                    "-f", str(RAIZ / "sql/04_transactions.sql")],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    """Deja la base en el estado exacto de la semilla (01, 02 y la función de laboratorio de 04)."""
+    for script in ("sql/01_schema.sql", "sql/02_seed.sql", "sql/04_transactions.sql"):
+        subprocess.run(psql(script), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def crear_pedidos(cantidades: list[int], sku: str = SKU) -> list[int]:
