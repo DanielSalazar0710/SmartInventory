@@ -21,7 +21,7 @@ Trabajamos en tres sprints semanales. Cada sprint empezó con una planificación
 
 **Retrospectiva.**
 - *Funcionó:* discutir la decisión libro/balance antes del DDL evitó rehacer tablas.
-- *A mejorar:* el diccionario escrito a mano se desactualizaba con cada cambio. Acordamos generarlo desde el catálogo de PostgreSQL (`docs/generar_diccionario.py`) y hacer lo mismo con el diagrama.
+- *A mejorar:* el diccionario escrito a mano se desactualizaba con cada cambio. Acordamos generarlo directamente desde el catálogo de PostgreSQL y hacer lo mismo con el diagrama.
 
 ## Sprint 2 · DDL, restricciones, datos semilla y consultas
 

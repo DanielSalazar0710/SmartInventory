@@ -131,4 +131,4 @@ Decisión: en nuestro esquema R1 ya existe (`ubicacion` con `id_bodega`) y no cr
 - `(id_pedido, nro_linea, id_producto) → detalle_pedido`: la reserva pertenece a una línea de ese producto.
 - `(id_lote, id_producto) → lote`: el lote reservado es de ese mismo producto.
 
-Juntas garantizan que nunca se reserve un lote de otro SKU (prueba T27). El control de consistencia es la propia FK: el valor repetido no puede divergir porque la base rechaza cualquier combinación que no exista en `lote`. Aplicamos el mismo patrón en `recepcion_linea` con `id_producto` e `id_oc`. Es la única redundancia del esquema, junto con el balance `existencia_lote`, cuya justificación está en la sección 1.3.
+Juntas garantizan que nunca se reserve un lote de otro SKU (prueba T27). El control de consistencia es la propia FK: el valor repetido no puede divergir porque la base rechaza cualquier combinación que no exista en `lote`. Aplicamos el mismo patrón en `recepcion_linea` con `id_producto` e `id_oc`. Es la única redundancia del esquema, junto con el balance `existencia_lote`, cuya justificación está en la sección 1.3 de [`modelo.md`](modelo.md).

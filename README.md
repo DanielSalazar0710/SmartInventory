@@ -28,10 +28,12 @@ benchmarks/
   explain_antes_despues.sql   EXPLAIN (ANALYZE, BUFFERS) sin y con índices
 docs/
   Informe_Deber2_Smart_Inventory.pdf   informe final
-  01_modelo.md … 09_conclusiones.md    fuentes del informe
-  diccionario_datos.md     generado desde el catálogo
-  img/diagrama_er.png|svg  diagrama ER generado desde el catálogo
-  08_sprints.md            registro de los tres sprints
+  modelo.md                supuestos, decisión libro/balance, cardinalidades y esquema relacional
+  diccionario_datos.md     diccionario de datos
+  matriz_reglas.md         matriz regla–restricción–prueba
+  normalizacion.md         dependencias, anomalías, 1FN–3FN y BCNF
+  registro_sprints.md      registro de los tres sprints
+  img/diagrama_er.png|svg  diagrama ER
 evidencias/                salidas reales de cada script
 scripts/ejecutar_todo.sh|ps1   carga y ejecución completa
 ```
@@ -70,13 +72,6 @@ Recarga la semilla antes de cada escenario, abre dos sesiones y escribe las lín
 createdb smart_inventory_perf
 psql -d smart_inventory_perf -f sql/01_schema.sql -f sql/05_indexes_views.sql -f benchmarks/seed_volumen.sql   # ~9 min
 psql -d smart_inventory_perf -f benchmarks/explain_antes_despues.sql > evidencias/explain_antes_despues.txt
-```
-
-### Regenerar el informe
-
-```bash
-python docs/generar_er.py && python docs/generar_diccionario.py   # requieren la base cargada y Graphviz
-python docs/construir_informe.py && node docs/html_a_pdf.js       # requieren pandoc y Playwright
 ```
 
 ## Resultados principales

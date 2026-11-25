@@ -73,11 +73,11 @@ Todas las FK usan `ON UPDATE RESTRICT` porque las claves son sustitutas (`GENERA
 
 ## 2.1 Diagrama ER
 
-<div class="horizontal">
-<figure><img src="img/diagrama_er.png" alt="Diagrama entidad–relación"><figcaption>Figura 1. Diagrama entidad–relación de Smart Inventory, generado desde el catálogo de PostgreSQL. Cada arista lleva el nombre de su FK; pata de gallo = muchos, barra = uno, círculo = opcional, línea discontinua = FK opcional.</figcaption></figure>
-</div>
+![Diagrama entidad–relación de Smart Inventory](img/diagrama_er.png)
 
-El diagrama se genera con `docs/generar_er.py` a partir de las restricciones reales de la base, así que las claves, la opcionalidad y los nombres de cada FK coinciden con el DDL. Partimos del modelo inicial del enunciado y lo extendimos con cuatro decisiones justificadas:
+Pata de gallo = muchos, barra = uno, círculo = opcional, línea discontinua = FK opcional. Cada arista lleva el nombre de su FK.
+
+El diagrama se obtuvo del catálogo de PostgreSQL, a partir de las restricciones reales de la base, así que las claves, la opcionalidad y los nombres de cada FK coinciden con el DDL. Partimos del modelo inicial del enunciado y lo extendimos con cuatro decisiones justificadas:
 
 - **`recepcion` y `recepcion_linea`**: el modelo inicial no tenía cómo registrar una recepción parcial ni vincularla a lote, ubicación y movimiento.
 - **`cliente`**: separa los datos del cliente del pedido (dependencia transitiva en la relación inicial).
@@ -127,4 +127,4 @@ Notación: **PK** subrayada como `PK(...)`, FK como `→ tabla`, claves alternat
 - RESERVA(**id_reserva**, (id_pedido, nro_linea, id_producto) → detalle_pedido, (id_lote, id_producto) → lote, (id_lote, id_ubicacion) → existencia_lote, cantidad, estado, creada_en, cerrada_en)
 - MOVIMIENTO(**id_movimiento**, tipo, id_lote → lote, id_ubicacion_origen → ubicacion, id_ubicacion_destino → ubicacion, cantidad, ocurrido_en, registrado_en, id_recepcion_linea → recepcion_linea, id_reserva → reserva, id_movimiento_revertido → movimiento, motivo) · UQ(id_recepcion_linea) · UQ(id_reserva) · UQ(id_movimiento_revertido)
 
-El detalle de tipos, nulos, valores por defecto, CHECK y significado de cada atributo está en el diccionario de datos (sección 3).
+El detalle de tipos, nulos, valores por defecto, CHECK y significado de cada atributo está en [`diccionario_datos.md`](diccionario_datos.md).
